@@ -1,7 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
-    mode: "development",
+    mode: "production",
     entry: './src/index.ts',
     module: {
         rules: [
@@ -17,7 +17,7 @@ module.exports = {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            title: 'Output Management',
+            title: 'Redome Metaballs'
         }),
     ],
     output: {

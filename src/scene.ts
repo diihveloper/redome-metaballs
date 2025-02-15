@@ -1,16 +1,33 @@
 import {Metaball} from './metaball';
-import {animationFrames, distinctUntilChanged, filter, fromEvent, map, Observable, pairwise, tap} from "rxjs";
+import {
+    animationFrames,
+    distinctUntilChanged,
+    filter,
+    fromEvent,
+    interval,
+    map,
+    Observable,
+    pairwise,
+    tap,
+    timer
+} from "rxjs";
 import {drawPoint} from "./utils";
+import {createNoise2D} from "simplex-noise";
+import PerlinNoise from "./perlin";
 
 const BACKGROUND_COLOR = '#FA5000';
+const perlin = new PerlinNoise();
 
 export class Scene {
-    private readonly objects: Metaball[];
+
+    private objects: Metaball[];
     private readonly rows: number;
     private readonly cols: number;
     private ctx: CanvasRenderingContext2D | null = null;
     private animation$: Observable<any> | null = null;
     private mousePosition = {x: 0, y: 0};
+    private noiseAuto = createNoise2D(() => 1)//(x: number, y: number) => perlin.noise(x, y, 0);
+    private noiseEnable = createNoise2D();
 
     constructor(readonly width: number, readonly height: number, readonly spacing: number, readonly radius: number = 32) {
         this.objects = [];
@@ -18,25 +35,25 @@ export class Scene {
         this.cols = Math.floor(this.width / this.spacing);
     }
 
-    init() {
-        const canvas = document.createElement('canvas');
-        canvas.width = this.width;
-        canvas.height = this.height;
+    private reset() {
+        this.objects = [];
+    }
 
-        document.body.appendChild(canvas);
-        this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-        this.ctx.fillStyle = BACKGROUND_COLOR;
-        this.ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+    private setupBalls(offset = 0) {
+        this.reset();
         const total = this.rows * this.cols;
         const offsetX = (this.spacing / 2) + (this.width - this.cols * this.spacing) / 2;
         const offsetY = (this.spacing / 2) + (this.height - this.rows * this.spacing) / 2;
 
+
+        const d = 100;
         for (let i = 0; i < total; i++) {
             const x = offsetX + i % this.cols * this.spacing;
             const y = offsetY + Math.floor(i / this.cols) * this.spacing;
-            const metaball = new Metaball(x, y, this.radius, Math.random() > 0.15, Math.random() < 0.1);
-            this._addObject(metaball);
+            const auto = this.noiseAuto((x + offset) / d, (y + offset) / d) > 0.5;
+            const active = this.noiseEnable((x + offset) / d, (y + offset) / d) > 0;
+            const metaball = new Metaball(x, y, this.radius, active, auto);
+            this.addBall(metaball);
 
             if (i >= this.cols) {
                 metaball.setNorth(this.objects[i - this.cols]);
@@ -47,6 +64,32 @@ export class Scene {
                 this.objects[i - 1].setEast(metaball);
             }
         }
+    }
+
+    private addBall(metaball: Metaball) {
+        this.objects.push(metaball);
+    }
+
+    private swapBalls(a: Metaball, b: Metaball) {
+        const indexA = this.objects.indexOf(a);
+        const indexB = this.objects.indexOf(b);
+        this.objects[indexA] = b;
+        this.objects[indexB] = a;
+    }
+
+    init() {
+        console.log();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = this.width;
+        canvas.height = this.height;
+
+        document.body.appendChild(canvas);
+        this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        this.setupBalls();
 
 
         this.animation$ = animationFrames().pipe(
@@ -68,7 +111,7 @@ export class Scene {
             })
         );
 
-        const objectHovered$ = mousePosition$.pipe(
+        mousePosition$.pipe(
             map((position) => {
                 // const {x, y} = position;
                 // const col = Math.floor((x - offsetX) / this.spacing);
@@ -91,15 +134,11 @@ export class Scene {
             prev?.onMouseOut();
         });
 
-        // mousePosition$.subscribe((event)=>{
-        //     console.log(event);
+        // interval(300).subscribe((value) => {
+        //     //this.setupBalls(value * 10);
         // });
-
     }
 
-    _addObject(metaball: Metaball) {
-        this.objects.push(metaball);
-    }
 
     update(delta: number) {
         for (let i = 0; i < this.objects.length; i++) {

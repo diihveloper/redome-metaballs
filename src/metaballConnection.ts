@@ -15,7 +15,8 @@ const TIME_TO_DISCONNECT = 1;
 const TIME_CONNECTED = 1;
 
 export class MetaballConnection {
-    private time = 0;
+    time = 0;
+    isComplete = false;
 
 
     constructor(readonly start: Metaball, readonly end: Metaball, readonly speed = 1) {
@@ -59,6 +60,7 @@ export class MetaballConnection {
         if (this.time > TIME_CONNECTED && this.start.state === MetaballState.Connecting) {
             this.time = 1;
             this.start.setState(MetaballState.Connected);
+            this.isComplete = true;
         }
 
         if (this.time > TIME_TO_DISCONNECT && this.start.state === MetaballState.Disconnecting) {
@@ -70,9 +72,10 @@ export class MetaballConnection {
         if (this.start.state === MetaballState.Connected && this.time > TIME_CONNECTED && !this.start.isMouseOver) {
             this.time = 0;
             this.start.setState(MetaballState.Disconnecting);
+            this.isComplete = false;
         }
 
-        if(this.start.state === MetaballState.Connected && this.start.isMouseOver) {
+        if (this.start.state === MetaballState.Connected && this.start.isMouseOver) {
             this.time = 1;
 
         }
