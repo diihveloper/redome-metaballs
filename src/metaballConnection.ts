@@ -16,11 +16,11 @@ const TIME_CONNECTED = 1;
 
 export class MetaballConnection {
     time = 0;
-    isComplete = false;
 
 
-    constructor(readonly start: Metaball, readonly end: Metaball, readonly speed = 1) {
-
+    constructor(readonly start: Metaball, readonly end: Metaball, readonly virtual = false) {
+        start.isInConnection = true;
+        end.isInConnection = true;
     }
 
     private getEndPosition(): Point {
@@ -28,13 +28,13 @@ export class MetaballConnection {
         switch (this.start.state) {
             case MetaballState.Connecting:
                 return [
-                    lerp(this.start.x, this.end.x, delta),
-                    lerp(this.start.y, this.end.y, delta)
+                    lerp(this.start.x, this.end.initialX, delta),
+                    lerp(this.start.y, this.end.initialY, delta)
                 ];
             case MetaballState.Disconnecting:
                 return [
-                    lerp(this.end.x, this.start.x, delta),
-                    lerp(this.end.y, this.start.y, delta)
+                    lerp(this.end.initialX, this.start.initialX, delta),
+                    lerp(this.end.initialY, this.start.initialY, delta)
                 ];
             default:
                 return [this.end.x, this.end.y];
@@ -42,26 +42,23 @@ export class MetaballConnection {
     }
 
     private getStartPosition(): Point {
-        const delta = clamp(this.time, 0, 1);
-        switch (this.start.state) {
-            // case MetaballState.Disconnecting:
-            //     return [
-            //         lerp(this.start.x, this.end.x, delta),
-            //         lerp(this.start.y, this.end.y, delta)
-            //     ];
-            default:
-                return [this.start.x, this.start.y];
-        }
+        return [this.start.initialX, this.start.initialY];
     }
 
     update(delta: number) {
-        this.time += delta * this.speed;
+        this.time += delta;
 
         if (this.time > TIME_CONNECTED && this.start.state === MetaballState.Connecting) {
             this.time = 1;
             this.start.setState(MetaballState.Connected);
-            this.isComplete = true;
+            this.start.setNextState(MetaballState.Disconnecting, TIME_CONNECTED, () => {
+              this.time = 0;
+            });
         }
+        // if (this.start.state === MetaballState.Connected && this.time > TIME_CONNECTED && !this.start.isMouseOver) {
+        //     this.time = 0;
+        //     this.start.setState(MetaballState.Disconnecting);
+        // }
 
         if (this.time > TIME_TO_DISCONNECT && this.start.state === MetaballState.Disconnecting) {
             this.time = 0;
@@ -69,11 +66,7 @@ export class MetaballConnection {
             this.start.disconnect();
         }
 
-        if (this.start.state === MetaballState.Connected && this.time > TIME_CONNECTED && !this.start.isMouseOver) {
-            this.time = 0;
-            this.start.setState(MetaballState.Disconnecting);
-            this.isComplete = false;
-        }
+
 
         if (this.start.state === MetaballState.Connected && this.start.isMouseOver) {
             this.time = 1;
@@ -82,6 +75,9 @@ export class MetaballConnection {
     }
 
     render(ctx: CanvasRenderingContext2D) {
+
+        if (this.virtual) return;
+
         const start: Point = this.getStartPosition();
         const end: Point = this.getEndPosition();
         ctx.beginPath();
@@ -117,6 +113,10 @@ export class MetaballConnection {
         }
     }
 
+    disconnect() {
+        this.start.isInConnection = false;
+        this.end.isInConnection = false;
+    }
 
     private drawConnection(
         ctx: CanvasRenderingContext2D,
