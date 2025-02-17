@@ -1,19 +1,8 @@
 import {Metaball} from './metaball';
-import {
-    animationFrames,
-    distinctUntilChanged,
-    filter,
-    fromEvent,
-    interval,
-    map,
-    Observable,
-    pairwise,
-    tap,
-    timer
-} from "rxjs";
-import {drawPoint} from "./utils";
+import {animationFrames, distinctUntilChanged, fromEvent, map, Observable, pairwise, tap} from "rxjs";
 import {createNoise2D} from "simplex-noise";
 import PerlinNoise from "./perlin";
+import {MetaballState} from "./metaballState";
 
 const BACKGROUND_COLOR = '#FA5000';
 const perlin = new PerlinNoise();
@@ -50,7 +39,7 @@ export class Scene {
         for (let i = 0; i < total; i++) {
             const x = offsetX + i % this.cols * this.spacing;
             const y = offsetY + Math.floor(i / this.cols) * this.spacing;
-            const auto = this.noiseAuto((x + offset) / d, (y + offset) / d) > 0.5;
+            const auto = this.noiseAuto((x + offset) / d, (y + offset) / d) > 0.85;
             const active = this.noiseEnable((x + offset) / d, (y + offset) / d) > 0;
             const metaball = new Metaball(x, y, this.radius, active, auto);
             this.addBall(metaball);
@@ -154,7 +143,12 @@ export class Scene {
         this.ctx.fillStyle = BACKGROUND_COLOR;
         this.ctx.fillRect(0, 0, this.width, this.height);
         for (let i = 0; i < this.objects.length; i++) {
-            this.objects[i].render(this.ctx);
+            if (this.objects[i].state === MetaballState.Idle)
+                this.objects[i].render(this.ctx);
+        }
+        for (let i = 0; i < this.objects.length; i++) {
+            if (this.objects[i].state !== MetaballState.Idle)
+                this.objects[i].render(this.ctx);
         }
 
     }

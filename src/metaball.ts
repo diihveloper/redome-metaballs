@@ -16,6 +16,7 @@ export class Metaball {
 
     isInConnection: boolean = false;
 
+
     private time = 0;
     private animationTime = 0;
     private _isMouseOver = false;
@@ -110,6 +111,8 @@ export class Metaball {
 
         if (this.auto) {
             this.autoUpdate();
+        } else {
+            this.color = this.state !== MetaballState.Idle ? BALL_COLOR_HIGHLIGHT : BALL_COLOR;
         }
 
 
