@@ -1,9 +1,8 @@
 import {MetaballState} from "./metaballState";
 import {MetaballConnection} from "./metaballConnection";
 import {clamp, lerp} from "./math";
+import {SceneConfig} from "./scene-config";
 
-const BALL_COLOR = '#FF6E00';
-const BALL_COLOR_HIGHLIGHT = '#FFCD32';
 
 export class Metaball {
     get state(): MetaballState {
@@ -27,22 +26,25 @@ export class Metaball {
     readonly initialX: number;
     readonly initialY: number;
     private connection: MetaballConnection | null = null;
-    public color: string = BALL_COLOR;
+    public color: string;
     private _north: Metaball | null = null;
     private _south: Metaball | null = null;
     private _east: Metaball | null = null;
     private _west: Metaball | null = null;
+    private _sceneConfig: SceneConfig;
+    public radius: number;
 
     get neighbors(): Metaball[] {
         return [this._north, this._south, this._east, this._west].filter((n) => !!n && n.state === MetaballState.Idle) as Metaball[];
     }
 
 
-    constructor(public x: number, public y: number, public radius: number, readonly active = true, readonly auto = false) {
+    constructor(public x: number, public y: number, sceneConfig: SceneConfig, readonly active = true, readonly auto = false) {
         this.x = this.initialX = x;
         this.y = this.initialY = y;
-        this.radius = radius;
-        this.color = BALL_COLOR;
+        this.radius = sceneConfig.radius;
+        this._sceneConfig = sceneConfig;
+        this.color = sceneConfig.ballColor;
     }
 
     setNextState(state: MetaballState, time: number, callback: Function | null = null) {
@@ -112,7 +114,7 @@ export class Metaball {
         if (this.auto) {
             this.autoUpdate();
         } else {
-            this.color = this.state !== MetaballState.Idle ? BALL_COLOR_HIGHLIGHT : BALL_COLOR;
+            this.color = this.state !== MetaballState.Idle ? this._sceneConfig.ballColorHighlight : this._sceneConfig.ballColor;
         }
 
 

@@ -17,7 +17,7 @@ module.exports = {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            title: 'Redome Metaballs'
+            template: "src/index.html"
         }),
     ],
     output: {
@@ -28,8 +28,9 @@ module.exports = {
     devServer: {
         static: './dist',
         hot: true,
+
     },
     optimization: {
-        runtimeChunk: 'single',
+        minimize: true
     }
 };

@@ -1,25 +1,48 @@
 import {Metaball} from './metaball';
 import {animationFrames, distinctUntilChanged, fromEvent, map, Observable, pairwise, tap} from "rxjs";
 import {createNoise2D} from "simplex-noise";
-import PerlinNoise from "./perlin";
 import {MetaballState} from "./metaballState";
+import {DEFAULT_SCENE_CONFIG, SceneConfig} from "./scene-config";
 
-const BACKGROUND_COLOR = '#FA5000';
-const perlin = new PerlinNoise();
+const MIN_WIDTH = 400;
+const MIN_HEIGHT = 300;
+
 
 export class Scene {
 
     private objects: Metaball[];
     private readonly rows: number;
     private readonly cols: number;
+    private readonly width: number;
+    private readonly height: number
+    private readonly spacing: number;
+    private readonly radius: number
+    private readonly backgroundColor: string;
+    private readonly sceneConfig: SceneConfig;
+
+
     private ctx: CanvasRenderingContext2D | null = null;
     private animation$: Observable<any> | null = null;
-    private mousePosition = {x: 0, y: 0};
     private noiseAuto = createNoise2D(() => 1)//(x: number, y: number) => perlin.noise(x, y, 0);
     private noiseEnable = createNoise2D();
 
-    constructor(readonly width: number, readonly height: number, readonly spacing: number, readonly radius: number = 32) {
+    constructor(readonly element: HTMLElement, partialConfig: Partial<SceneConfig> = {}) {
+
+        this.sceneConfig = DEFAULT_SCENE_CONFIG;
+        Object.keys(partialConfig).forEach((key) => {
+            const attr = key as keyof SceneConfig;
+            if (!partialConfig[attr]) {
+                delete partialConfig[attr];
+            }
+        });
+        Object.assign(this.sceneConfig, partialConfig);
+        this.backgroundColor = this.sceneConfig.backgroundColor;
+        this.spacing = this.sceneConfig.spacing;
+        this.radius = this.sceneConfig.radius;
+
         this.objects = [];
+        this.width = Math.max(element.clientWidth, MIN_WIDTH);
+        this.height = Math.max(element.clientHeight, MIN_HEIGHT);
         this.rows = Math.floor(this.height / this.spacing);
         this.cols = Math.floor(this.width / this.spacing);
     }
@@ -39,9 +62,11 @@ export class Scene {
         for (let i = 0; i < total; i++) {
             const x = offsetX + i % this.cols * this.spacing;
             const y = offsetY + Math.floor(i / this.cols) * this.spacing;
-            const auto = this.noiseAuto((x + offset) / d, (y + offset) / d) > 0.85;
+            const auto = this.noiseAuto((x + offset) / d, (y + offset) / d) > this.sceneConfig.autoRatio;
             const active = this.noiseEnable((x + offset) / d, (y + offset) / d) > 0;
-            const metaball = new Metaball(x, y, this.radius, active, auto);
+            // const auto = Math.random() <= this.sceneConfig.autoRatio;
+            // const active = Math.random() <= this.sceneConfig.enableRatio;
+            const metaball = new Metaball(x, y, this.sceneConfig, active, auto);
             this.addBall(metaball);
 
             if (i >= this.cols) {
@@ -67,15 +92,15 @@ export class Scene {
     }
 
     init() {
-        console.log();
+
 
         const canvas = document.createElement('canvas');
         canvas.width = this.width;
         canvas.height = this.height;
 
-        document.body.appendChild(canvas);
+        this.element.appendChild(canvas);
         this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillStyle = this.backgroundColor;
         this.ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         this.setupBalls();
@@ -109,7 +134,6 @@ export class Scene {
                 // if (index >= 0 && index < this.objects.length) {
                 //     return this.objects[index];
                 // }
-                this.mousePosition = position;
                 return this.objects.find((object) => {
                     const dx = object.x - position.x;
                     const dy = object.y - position.y;
@@ -121,6 +145,8 @@ export class Scene {
         ).subscribe(([prev, current]) => {
             current?.onMouseOver();
             prev?.onMouseOut();
+            //this.element.style.cursor = !!current && current.active ? 'pointer' : 'default';
+
         });
 
         // interval(300).subscribe((value) => {
@@ -140,7 +166,7 @@ export class Scene {
         if (!this.ctx) {
             return;
         }
-        this.ctx.fillStyle = BACKGROUND_COLOR;
+        this.ctx.fillStyle = this.backgroundColor;
         this.ctx.fillRect(0, 0, this.width, this.height);
         for (let i = 0; i < this.objects.length; i++) {
             if (this.objects[i].state === MetaballState.Idle)
